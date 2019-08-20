@@ -1,7 +1,9 @@
 function getTags(data)
 {
     var dataView = new DataView(data);
-    var exifOffset = dataView.getInt32(3971);   // 0x18 + 0xF74 - 0x8
+    // var exifOffset = dataView.getInt32(3971);   // 0x18 + 0xF74 - 0x8
+    var metadataOffset = dataView.getUint32(24);
+    var exifOffset = dataView.getUint32(metadataOffset + 16);
     var tags = readEXIFData(dataView, exifOffset + 4);
 
     return tags;
