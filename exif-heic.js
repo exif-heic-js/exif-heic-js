@@ -1,12 +1,14 @@
-function getTags(data)
-{
-    var dataView = new DataView(data);
-    // var exifOffset = dataView.getInt32(3971);   // 0x18 + 0xF74 - 0x8
-    var metadataOffset = dataView.getUint32(24);
-    var exifOffset = dataView.getUint32(metadataOffset + 16);
-    var tags = readEXIFData(dataView, exifOffset + 4);
-
-    return tags;
+function findEXIFinHEIC(data) {
+  var dataView = new DataView(data);
+  var metadataOffset = dataView.getUint32(24);
+  var exifOffset1 = dataView.getUint32(metadataOffset) + 4;
+  var exifOffset2 = dataView.getUint32(metadataOffset + 16) + 4;
+  if (getStringFromDB(dataView, exifOffset1, 4) == "Exif") {
+    return readEXIFData(dataView, exifOffset1);
+  } else if (getStringFromDB(dataView, exifOffset2, 4) == "Exif") {
+    return readEXIFData(dataView, exifOffset2);
+  }
+  return null;
 }
 
 // Based on Exif.js (https://github.com/exif-js/exif-js)
@@ -439,12 +441,6 @@ function getStringFromDB(buffer, start, length)
 
 function readEXIFData(file, start)
 {
-    if (getStringFromDB(file, start, 4) != "Exif")
-    {
-        if (debug) console.log("Not valid EXIF data! " + getStringFromDB(file, start, 4));
-        return false;
-    }
-
     var bigEnd,
         tags, tag,
         exifData, gpsData,
