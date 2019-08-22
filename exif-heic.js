@@ -1,17 +1,64 @@
+//Based on HEIC format decoded via https://github.com/exiftool/exiftool
 function findEXIFinHEIC(data) {
   var dataView = new DataView(data);
-  var metadataOffset = dataView.getUint32(24);
-  var exifOffset1 = dataView.getUint32(metadataOffset) + 4;
-  var exifOffset2 = dataView.getUint32(metadataOffset + 16) + 4;
-  if (getStringFromDB(dataView, exifOffset1, 4) == "Exif") {
-    return readEXIFData(dataView, exifOffset1);
-  } else if (getStringFromDB(dataView, exifOffset2, 4) == "Exif") {
-    return readEXIFData(dataView, exifOffset2);
+  var ftypeSize = dataView.getUint32(0); // size of ftype box
+  var metadataSize = dataView.getUint32(ftypeSize); //size of metadata box
+  //Scan through metadata till we find (a) Exif, (b), iloc
+  var exifOffset = -1;
+  var ilocOffset = -1;
+  for(var i = ftypeSize; i < metadataSize + ftypeSize; i++) {
+    if(getStringFromDB(dataView, i, 4) == "Exif") {
+      exifOffset = i;
+    } else if(getStringFromDB(dataView, i, 4) == "iloc") {
+      ilocOffset = i;
+    }
+  }
+  if(exifOffset == -1 || ilocOffset == -1) {
+    return null;
+  }
+  var exifItemIndex = dataView.getUint16(exifOffset - 4);
+  //Scan through ilocs to find exif item Location\
+  for(var i = ilocOffset + 12; i < metadataSize + ftypeSize; i += 16) {
+    var itemIndex = dataView.getUint16(i);
+    if(itemIndex == exifItemIndex) {
+      var exifLocation = dataView.getUint32(i + 8);
+      var exifSize = dataView.getUint32(i + 12);
+      //Check prefix at exif exifOffset
+      var prefixSize = 4 + dataView.getUint32(exifLocation);
+      var exifOffset = exifLocation + prefixSize;
+      return readEXIFData(dataView, exifOffset);
+    }
   }
   return null;
 }
 
-// Based on Exif.js (https://github.com/exif-js/exif-js)
+//Based on Exif.js (https://github.com/exif-js/exif-js)
+function findEXIFinJPEG(data) {
+  var dataView = new DataView(data);
+  if ((dataView.getUint8(0) != 0xFF) || (dataView.getUint8(1) != 0xD8)) {
+    if (debug) console.log("Not a valid JPEG");
+    return false; // not a valid jpeg
+  }
+  var offset = 2,
+    length = data.byteLength,
+    marker;
+  while (offset < length) {
+    if (dataView.getUint8(offset) != 0xFF) {
+      if (debug) console.log("Not a valid marker at offset " + offset + ", found: " + dataView.getUint8(offset));
+      return false; // not a valid marker, something is wrong
+    }
+    marker = dataView.getUint8(offset + 1);
+    if (debug) console.log(marker);
+    // we could implement handling for other markers here,
+    // but we're only looking for 0xFFE1 for EXIF data
+    if (marker == 225) {
+      if (debug) console.log("Found 0xFFE1 marker");
+      return readEXIFData(dataView, offset + 4 + 6, dataView.getUint16(offset + 2) - 2);
+    } else {
+      offset += 2 + dataView.getUint16(offset + 2);
+    }
+  }
+}
 
 var debug = false;
 
@@ -444,7 +491,7 @@ function readEXIFData(file, start)
     var bigEnd,
         tags, tag,
         exifData, gpsData,
-        tiffOffset = start + 6;
+        tiffOffset = start; // + 6;
 
     // test for TIFF validity and endianness
     if (file.getUint16(tiffOffset) == 0x4949)
