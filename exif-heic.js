@@ -1,14 +1,3 @@
-function getTags(data)
-{
-    var dataView = new DataView(data);
-    var exifOffset = dataView.getInt32(3971);   // 0x18 + 0xF74 - 0x8
-    var tags = readEXIFData(dataView, exifOffset + 4);
-
-    return tags;
-}
-
-// Based on Exif.js (https://github.com/exif-js/exif-js)
-
 var debug = false;
 
 var ExifTags = {
@@ -437,22 +426,15 @@ function getStringFromDB(buffer, start, length)
 
 function readEXIFData(file, start)
 {
-    if (getStringFromDB(file, start, 4) != "Exif")
-    {
-        if (debug) console.log("Not valid EXIF data! " + getStringFromDB(file, start, 4));
-        return false;
-    }
-
     var bigEnd,
         tags, tag,
-        exifData, gpsData,
-        tiffOffset = start + 6;
+        exifData, gpsData;
 
     // test for TIFF validity and endianness
-    if (file.getUint16(tiffOffset) == 0x4949)
+    if (file.getUint16(start) == 0x4949)
     {
         bigEnd = false;
-    } else if (file.getUint16(tiffOffset) == 0x4D4D)
+    } else if (file.getUint16(start) == 0x4D4D)
     {
         bigEnd = true;
     } else
@@ -461,13 +443,13 @@ function readEXIFData(file, start)
         return false;
     }
 
-    if (file.getUint16(tiffOffset + 2, !bigEnd) != 0x002A)
+    if (file.getUint16(start + 2, !bigEnd) != 0x002A)
     {
         if (debug) console.log("Not valid TIFF data! (no 0x002A)");
         return false;
     }
 
-    var firstIFDOffset = file.getUint32(tiffOffset + 4, !bigEnd);
+    var firstIFDOffset = file.getUint32(start + 4, !bigEnd);
 
     if (firstIFDOffset < 0x00000008)
     {
@@ -475,11 +457,11 @@ function readEXIFData(file, start)
         return false;
     }
 
-    tags = readTags(file, tiffOffset, tiffOffset + firstIFDOffset, TiffTags, bigEnd);
+    tags = readTags(file, start, start + firstIFDOffset, TiffTags, bigEnd);
 
     if (tags.ExifIFDPointer)
     {
-        exifData = readTags(file, tiffOffset, tiffOffset + tags.ExifIFDPointer, ExifTags, bigEnd);
+        exifData = readTags(file, start, start + tags.ExifIFDPointer, ExifTags, bigEnd);
         for (tag in exifData)
         {
             switch (tag)
@@ -521,7 +503,7 @@ function readEXIFData(file, start)
 
     if (tags.GPSInfoIFDPointer)
     {
-        gpsData = readTags(file, tiffOffset, tiffOffset + tags.GPSInfoIFDPointer, GPSTags, bigEnd);
+        gpsData = readTags(file, start, start + tags.GPSInfoIFDPointer, GPSTags, bigEnd);
         for (tag in gpsData)
         {
             switch (tag)
@@ -538,4 +520,85 @@ function readEXIFData(file, start)
     }
 
     return tags;
+}
+
+//Based on HEIC format decoded via https://github.com/exiftool/exiftool
+function findEXIFinHEIC(data)
+{
+    var dataView = new DataView(data);
+    var ftypeSize = dataView.getUint32(0); // size of ftype box
+    var metadataSize = dataView.getUint32(ftypeSize); //size of metadata box
+
+    //Scan through metadata until we find (a) Exif, (b) iloc
+    var exifOffset = -1;
+    var ilocOffset = -1;
+    for (var i = ftypeSize; i < metadataSize + ftypeSize; i++)
+    {
+        if (getStringFromDB(dataView, i, 4) == "Exif")
+        {
+            exifOffset = i;
+        } else if (getStringFromDB(dataView, i, 4) == "iloc")
+        {
+            ilocOffset = i;
+        }
+    }
+
+    if (exifOffset == -1 || ilocOffset == -1)
+    {
+        return null;
+    }
+
+    var exifItemIndex = dataView.getUint16(exifOffset - 4);
+
+    //Scan through ilocs to find exif item location
+    for (var i = ilocOffset + 12; i < metadataSize + ftypeSize; i += 16)
+    {
+        var itemIndex = dataView.getUint16(i);
+        if (itemIndex == exifItemIndex)
+        {
+            var exifLocation = dataView.getUint32(i + 8);
+            var exifSize = dataView.getUint32(i + 12);
+            //Check prefix at exif exifOffset
+            var prefixSize = 4 + dataView.getUint32(exifLocation);
+            var exifOffset = exifLocation + prefixSize;
+
+            return readEXIFData(dataView, exifOffset);
+        }
+    }
+
+    return null;
+}
+
+//Based on Exif.js (https://github.com/exif-js/exif-js)
+function findEXIFinJPEG(data)
+{
+    var dataView = new DataView(data);
+    if ((dataView.getUint8(0) != 0xFF) || (dataView.getUint8(1) != 0xD8))
+    {
+        if (debug) console.log("Not a valid JPEG");
+        return false; // not a valid jpeg
+    }
+    var offset = 2,
+        length = data.byteLength,
+        marker;
+    while (offset < length)
+    {
+        if (dataView.getUint8(offset) != 0xFF)
+        {
+            if (debug) console.log("Not a valid marker at offset " + offset + ", found: " + dataView.getUint8(offset));
+            return false; // not a valid marker, something is wrong
+        }
+        marker = dataView.getUint8(offset + 1);
+        if (debug) console.log(marker);
+        // we could implement handling for other markers here,
+        // but we're only looking for 0xFFE1 for EXIF data
+        if (marker == 225)
+        {
+            if (debug) console.log("Found 0xFFE1 marker");
+            return readEXIFData(dataView, offset + 4 + 6, dataView.getUint16(offset + 2) - 2);
+        } else
+        {
+            offset += 2 + dataView.getUint16(offset + 2);
+        }
+    }
 }
