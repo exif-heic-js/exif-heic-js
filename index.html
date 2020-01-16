@@ -25,7 +25,7 @@
 
                     reader.onload = function ()
                     {
-                        var tags = getTags(reader.result);
+                        var tags = findEXIFinHEIC(reader.result);
 
                         var latitudeComponents = tags["GPSLatitude"];
                         var latitudeRef = tags["GPSLatitudeRef"];
