@@ -8,16 +8,22 @@ The method `findEXIFinHEIC` takes an HEIC file in the form of `ArrayBuffer`, and
 
 You can install it through NPM:
 
-    npm install https://github.com/exif-heic-js/exif-heic-js --save
+```
+npm install https://github.com/exif-heic-js/exif-heic-js --save
+```
 
 then reference your local file:
 
-    <script src="vendors/exif-js/exif-js"></script>
+```html
+<script src="vendors/exif-js/exif-js"></script>
+```
 
 You can also use a minified version hosted by jsDelivr:
 
-    <script src="https://cdn.jsdelivr.net/gh/exif-heic-js/exif-heic-js/exif-heic.min.js"></script>
+```html
+<script src="https://cdn.jsdelivr.net/gh/exif-heic-js/exif-heic-js/exif-heic.min.js"></script>
+```
 
 ## Example
 
-A live demo is available at https://exif-heic-js.github.io/exif-heic-js/example/.
+A live demo is available on the [GitHub Pages site](https://exif-heic-js.github.io/exif-heic-js/example/).

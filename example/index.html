@@ -10,7 +10,7 @@
             Upload an .heic file to extract its GPS coordiates.
         </div>
         <div>
-            <input type="file" id="photo" name="photo" acc accept=".heic" />
+            <input type="file" id="photo" name="photo" accept=".heic,.jpeg,.jpg" />
         </div>
         <div>
             <span id="gps-coordinates"></span>
@@ -19,23 +19,30 @@
         <script>
             document.getElementById("photo").onchange = function (e)
             {
-                if (e.target.files[0].name.toLowerCase().endsWith(".heic"))
+                let extension = e.target.files[0].name.toLowerCase().split('.').pop();
+                
+                switch (extension)
                 {
-                    var reader = new FileReader();
+                    case "jpeg":
+                    case "jpg":
+                    case "heic":
+                        let reader = new FileReader();
 
-                    reader.onload = function ()
-                    {
-                        var tags = findEXIFinHEIC(reader.result);
+                        reader.onload = function ()
+                        {
+                            let tags = extension == "heic" ? findEXIFinHEIC(reader.result) : findEXIFinJPEG(reader.result);
 
-                        var latitudeComponents = tags["GPSLatitude"];
-                        var latitudeRef = tags["GPSLatitudeRef"];
-                        var longitudeComponents = tags["GPSLongitude"];
-                        var longitudeRef = tags["GPSLongitudeRef"];
+                            let latitudeComponents = tags["GPSLatitude"];
+                            let latitudeRef = tags["GPSLatitudeRef"];
+                            let longitudeComponents = tags["GPSLongitude"];
+                            let longitudeRef = tags["GPSLongitudeRef"];
 
-                        document.getElementById("gps-coordinates").innerHTML = "The picture was taken at " + latitudeComponents + " " + latitudeRef + ", " + longitudeComponents + " " + longitudeRef + ".";
-                    };
+                            document.getElementById("gps-coordinates").innerHTML = "The picture was taken at " + latitudeComponents + " " + latitudeRef + ", " + longitudeComponents + " " + longitudeRef + ".";
+                        };
 
-                    reader.readAsArrayBuffer(e.target.files[0]);
+                        reader.readAsArrayBuffer(e.target.files[0]);
+
+                        break;
                 }
             }
         </script>
