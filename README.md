@@ -1,6 +1,6 @@
 # Exif-HEIC.js
 
-A JavaScript library for reading [EXIF meta data](https://en.wikipedia.org/wiki/Exchangeable_image_file_format) from HEIC files created by iOS devices. It is derived from [Exif.js](https://github.com/exif-js/exif-js/blob/master/README.md).
+A JavaScript library for reading [EXIF meta data](https://en.wikipedia.org/wiki/Exchangeable_image_file_format) from [HEIC files](https://en.wikipedia.org/wiki/High_Efficiency_Image_File_Format). It is derived from [Exif.js](https://github.com/exif-js/exif-js/blob/master/README.md).
 
 The method `findEXIFinHEIC` takes an HEIC file in the form of `ArrayBuffer`, and return a collection of extracted EXIF tags. The method `findEXIFinJPEG` from Exif.js is also present to support JPEG files.
 
@@ -9,10 +9,10 @@ The method `findEXIFinHEIC` takes an HEIC file in the form of `ArrayBuffer`, and
 You can install it through NPM:
 
 ```
-npm install https://github.com/exif-heic-js/exif-heic-js --save
+npm install exif-heic-js --save
 ```
 
-then reference your local file:
+then reference your local file with a `script` tag:
 
 ```html
 <script src="vendors/exif-js/exif-js"></script>

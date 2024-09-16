@@ -1,8 +1,11 @@
 {
   "name": "exif-heic-js",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "JavaScript library for reading EXIF image metadata from HEIC files",
   "main": "exif-heic.js",
+  "directories": {
+    "example": "example"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/exif-heic-js/exif-heic-js.git"

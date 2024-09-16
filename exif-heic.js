@@ -1,6 +1,6 @@
-var debug = false;
+const debug = false;
 
-var ExifTags = {
+let ExifTags = {
 
     // version tags
     0x9000: "ExifVersion",             // EXIF version
@@ -75,7 +75,8 @@ var ExifTags = {
     0xA005: "InteroperabilityIFDPointer",
     0xA420: "ImageUniqueID"            // Identifier assigned uniquely to each image
 };
-var TiffTags = {
+
+let TiffTags = {
     0x0100: "ImageWidth",
     0x0101: "ImageHeight",
     0x8769: "ExifIFDPointer",
@@ -111,7 +112,7 @@ var TiffTags = {
     0x8298: "Copyright"
 };
 
-var GPSTags = {
+let GPSTags = {
     0x0000: "GPSVersionID",
     0x0001: "GPSLatitudeRef",
     0x0002: "GPSLatitude",
@@ -145,7 +146,7 @@ var GPSTags = {
     0x001E: "GPSDifferential"
 };
 
-var StringValues = {
+let StringValues = {
     ExposureProgram: {
         0: "Not defined",
         1: "Manual",
@@ -285,12 +286,11 @@ var StringValues = {
 
 function readTags(file, tiffStart, dirStart, strings, bigEnd)
 {
-    var entries = file.getUint16(dirStart, !bigEnd),
+    let entries = file.getUint16(dirStart, !bigEnd),
         tags = {},
-        entryOffset, tag,
-        i;
+        entryOffset, tag;
 
-    for (i = 0; i < entries; i++)
+    for (let i = 0; i < entries; i++)
     {
         entryOffset = dirStart + i * 12 + 2;
         tag = strings[file.getUint16(entryOffset, !bigEnd)];
@@ -303,7 +303,7 @@ function readTags(file, tiffStart, dirStart, strings, bigEnd)
 
 function readTagValue(file, entryOffset, tiffStart, dirStart, bigEnd)
 {
-    var type = file.getUint16(entryOffset + 2, !bigEnd),
+    let type = file.getUint16(entryOffset + 2, !bigEnd),
         numValues = file.getUint32(entryOffset + 4, !bigEnd),
         valueOffset = file.getUint32(entryOffset + 8, !bigEnd) + tiffStart,
         offset,
@@ -336,7 +336,8 @@ function readTagValue(file, entryOffset, tiffStart, dirStart, bigEnd)
             if (numValues == 1)
             {
                 return file.getUint16(entryOffset + 8, !bigEnd);
-            } else
+            }
+            else
             {
                 offset = numValues > 2 ? valueOffset : (entryOffset + 8);
                 vals = [];
@@ -351,7 +352,8 @@ function readTagValue(file, entryOffset, tiffStart, dirStart, bigEnd)
             if (numValues == 1)
             {
                 return file.getUint32(entryOffset + 8, !bigEnd);
-            } else
+            }
+            else
             {
                 vals = [];
                 for (n = 0; n < numValues; n++)
@@ -370,7 +372,8 @@ function readTagValue(file, entryOffset, tiffStart, dirStart, bigEnd)
                 val.numerator = numerator;
                 val.denominator = denominator;
                 return val;
-            } else
+            }
+            else
             {
                 vals = [];
                 for (n = 0; n < numValues; n++)
@@ -388,7 +391,8 @@ function readTagValue(file, entryOffset, tiffStart, dirStart, bigEnd)
             if (numValues == 1)
             {
                 return file.getInt32(entryOffset + 8, !bigEnd);
-            } else
+            }
+            else
             {
                 vals = [];
                 for (n = 0; n < numValues; n++)
@@ -402,7 +406,8 @@ function readTagValue(file, entryOffset, tiffStart, dirStart, bigEnd)
             if (numValues == 1)
             {
                 return file.getInt32(valueOffset, !bigEnd) / file.getInt32(valueOffset + 4, !bigEnd);
-            } else
+            }
+            else
             {
                 vals = [];
                 for (n = 0; n < numValues; n++)
@@ -416,17 +421,18 @@ function readTagValue(file, entryOffset, tiffStart, dirStart, bigEnd)
 
 function getStringFromDB(buffer, start, length)
 {
-    var outstr = "";
-    for (var n = start; n < start + length; n++)
+    let outstr = "";
+    for (let i = start; i < start + length; i++)
     {
-        outstr += String.fromCharCode(buffer.getUint8(n));
+        outstr += String.fromCharCode(buffer.getUint8(i));
     }
+
     return outstr;
 }
 
 function readEXIFData(file, start)
 {
-    var bigEnd,
+    let bigEnd,
         tags, tag,
         exifData, gpsData;
 
@@ -434,26 +440,31 @@ function readEXIFData(file, start)
     if (file.getUint16(start) == 0x4949)
     {
         bigEnd = false;
-    } else if (file.getUint16(start) == 0x4D4D)
+    }
+    else if (file.getUint16(start) == 0x4D4D)
     {
         bigEnd = true;
-    } else
+    }
+    else
     {
         if (debug) console.log("Not valid TIFF data! (no 0x4949 or 0x4D4D)");
+
         return false;
     }
 
     if (file.getUint16(start + 2, !bigEnd) != 0x002A)
     {
         if (debug) console.log("Not valid TIFF data! (no 0x002A)");
+
         return false;
     }
 
-    var firstIFDOffset = file.getUint32(start + 4, !bigEnd);
+    const firstIFDOffset = file.getUint32(start + 4, !bigEnd);
 
     if (firstIFDOffset < 0x00000008)
     {
         if (debug) console.log("Not valid TIFF data! (First offset less than 8)", file.getUint32(tiffOffset + 4, !bigEnd));
+
         return false;
     }
 
@@ -497,6 +508,7 @@ function readEXIFData(file, start)
                         StringValues.Components[exifData[tag][3]];
                     break;
             }
+
             tags[tag] = exifData[tag];
         }
     }
@@ -525,19 +537,20 @@ function readEXIFData(file, start)
 //Based on HEIC format decoded via https://github.com/exiftool/exiftool
 function findEXIFinHEIC(data)
 {
-    var dataView = new DataView(data);
-    var ftypeSize = dataView.getUint32(0); // size of ftype box
-    var metadataSize = dataView.getUint32(ftypeSize); //size of metadata box
+    const dataView = new DataView(data);
+    const ftypeSize = dataView.getUint32(0); // size of ftype box
+    const metadataSize = dataView.getUint32(ftypeSize); //size of metadata box
 
-    //Scan through metadata until we find (a) Exif, (b) iloc
-    var exifOffset = -1;
-    var ilocOffset = -1;
-    for (var i = ftypeSize; i < metadataSize + ftypeSize; i++)
+    // Scan through metadata until we find (a) Exif, (b) iloc
+    let exifOffset = -1;
+    let ilocOffset = -1;
+    for (let i = ftypeSize; i < metadataSize + ftypeSize; i++)
     {
         if (getStringFromDB(dataView, i, 4) == "Exif")
         {
             exifOffset = i;
-        } else if (getStringFromDB(dataView, i, 4) == "iloc")
+        }
+        else if (getStringFromDB(dataView, i, 4) == "iloc")
         {
             ilocOffset = i;
         }
@@ -548,19 +561,20 @@ function findEXIFinHEIC(data)
         return null;
     }
 
-    var exifItemIndex = dataView.getUint16(exifOffset - 4);
+    const exifItemIndex = dataView.getUint16(exifOffset - 4);
 
-    //Scan through ilocs to find exif item location
-    for (var i = ilocOffset + 12; i < metadataSize + ftypeSize; i += 16)
+    // Scan through ilocs to find exif item location
+    for (let i = ilocOffset + 12; i < metadataSize + ftypeSize; i += 16)
     {
-        var itemIndex = dataView.getUint16(i);
+        let itemIndex = dataView.getUint16(i);
         if (itemIndex == exifItemIndex)
         {
-            var exifLocation = dataView.getUint32(i + 8);
-            var exifSize = dataView.getUint32(i + 12);
+            let exifLocation = dataView.getUint32(i + 8);
+            let exifSize = dataView.getUint32(i + 12);
+            
             //Check prefix at exif exifOffset
-            var prefixSize = 4 + dataView.getUint32(exifLocation);
-            var exifOffset = exifLocation + prefixSize;
+            let prefixSize = 4 + dataView.getUint32(exifLocation);
+            let exifOffset = exifLocation + prefixSize;
 
             return readEXIFData(dataView, exifOffset);
         }
@@ -572,31 +586,40 @@ function findEXIFinHEIC(data)
 //Based on Exif.js (https://github.com/exif-js/exif-js)
 function findEXIFinJPEG(data)
 {
-    var dataView = new DataView(data);
+    const dataView = new DataView(data);
+    const dataLength = data.byteLength;
+
     if ((dataView.getUint8(0) != 0xFF) || (dataView.getUint8(1) != 0xD8))
     {
         if (debug) console.log("Not a valid JPEG");
-        return false; // not a valid jpeg
+
+        return false;
     }
-    var offset = 2,
-        length = data.byteLength,
+
+    let offset = 2,
         marker;
-    while (offset < length)
+
+    while (offset < dataLength)
     {
         if (dataView.getUint8(offset) != 0xFF)
         {
             if (debug) console.log("Not a valid marker at offset " + offset + ", found: " + dataView.getUint8(offset));
-            return false; // not a valid marker, something is wrong
+
+            return false;
         }
+
         marker = dataView.getUint8(offset + 1);
+
         if (debug) console.log(marker);
-        // we could implement handling for other markers here,
-        // but we're only looking for 0xFFE1 for EXIF data
+
+        // We could implement handling for other markers here, but we're only looking for 0xFFE1 for EXIF data
         if (marker == 225)
         {
             if (debug) console.log("Found 0xFFE1 marker");
+
             return readEXIFData(dataView, offset + 4 + 6, dataView.getUint16(offset + 2) - 2);
-        } else
+        }
+        else
         {
             offset += 2 + dataView.getUint16(offset + 2);
         }
