@@ -534,17 +534,45 @@ function readEXIFData(file, start)
     return tags;
 }
 
-//Based on HEIC format decoded via https://github.com/exiftool/exiftool
 function findEXIFinHEIC(data)
 {
-    const dataView = new DataView(data);
-    const ftypeSize = dataView.getUint32(0); // size of ftype box
-    const metadataSize = dataView.getUint32(ftypeSize); //size of metadata box
+    // The HEIC file should contain at least three boxes, ftyp, meta, and mdat, with ftyp being the first.
+    // The first 4 bytes of a box indicate its size, and the second 4 bytes indicate its name.
 
-    // Scan through metadata until we find (a) Exif, (b) iloc
+    const dataView = new DataView(data);
+    const ftypSize = dataView.getUint32(0);
+    let metaOffset = -1;
+    let metaSize = -1;
+    let boxOffset = ftypSize;
+    let boxSize = -1;
+    let boxName = "";
+
+    // Scan through the data after ftype to find the meta box
+    while (boxName != "meta" && boxSize + 8 <= dataView.byteLength)
+    {
+        boxSize = dataView.getUint32(boxOffset);
+        boxName = getStringFromDB(dataView, boxOffset + 4, 4);
+
+        if (boxName == "meta")
+        {
+            metaOffset = boxOffset;
+            metaSize = boxSize;
+        }
+        else
+        {
+            boxOffset += boxSize;
+        }
+    }
+
+    if (metaOffset == -1 || metaSize == -1)
+    {
+        return null;
+    }
+
+    // Scan through metadata to find Exif and iloc
     let exifOffset = -1;
     let ilocOffset = -1;
-    for (let i = ftypeSize; i < metadataSize + ftypeSize; i++)
+    for (let i = metaOffset; i < metaOffset + metaSize; i++)
     {
         if (getStringFromDB(dataView, i, 4) == "Exif")
         {
@@ -564,7 +592,7 @@ function findEXIFinHEIC(data)
     const exifItemIndex = dataView.getUint16(exifOffset - 4);
 
     // Scan through ilocs to find exif item location
-    for (let i = ilocOffset + 12; i < metadataSize + ftypeSize; i += 16)
+    for (let i = ilocOffset + 12; i < metaOffset + metaSize; i += 16)
     {
         let itemIndex = dataView.getUint16(i);
         if (itemIndex == exifItemIndex)
@@ -583,7 +611,7 @@ function findEXIFinHEIC(data)
     return null;
 }
 
-//Based on Exif.js (https://github.com/exif-js/exif-js)
+// Based on Exif.js (https://github.com/exif-js/exif-js)
 function findEXIFinJPEG(data)
 {
     const dataView = new DataView(data);
